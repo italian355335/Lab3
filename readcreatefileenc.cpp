@@ -3,16 +3,15 @@
 #include <filesystem>
 #include <string>
 #include <vector>
+#include "readcreatefileenc.h"
 
 std::string readfile(const std::string& pattern, int aenc) {
-
-    if ( aenc !=1 && aenc != 2) {
-        std::cout << "Я же сказал 1 или 2!\n";
-        return "нужно читать что пишут и да я повторю это дважды";
+    if (aenc != 1 && aenc != 2) {
+        throw std::runtime_error("Unknown operation");
     }
     std::vector<std::string> foundFiles;
 
-    std::string searchStr = (aenc == 1) ? "notenc" : "enc";
+    std::string searchStr = (aenc == 1) ? "input" : "output";
 
     for (const auto& entry : std::filesystem::directory_iterator(".")) {
         std::string name = entry.path().filename().string();
@@ -30,38 +29,33 @@ std::string readfile(const std::string& pattern, int aenc) {
     }
 
     if (foundFiles.empty()) {
-        std::cout << "Файлов с таким названием нет\n";
-        return "";
+        throw std::runtime_error("No files with such name");
     }
     if (foundFiles.size() > 1) {
-        std::cout << "Есть несколько файлов с таким названием\n";
-        return "";
+        throw std::runtime_error("More than one files with such name");
     }
 
     std::string inputFile = foundFiles[0];
 
     std::ifstream fin(inputFile);
     if (!fin) {
-        std::cout << "Ошибка открытия файла\n";
-        return "";
+        throw std::runtime_error("Failed to open file");
     }
 
     std::string input_massage;
-    fin >> input_massage; 
+    fin >> input_massage;
     fin.close();
 
     return input_massage;
 }
 
 void createEncfile(const std::string& pattern, const std::string& output_massage, int aenc) {
-    if ( aenc !=1 && aenc != 2) {
-        std::cout << "Я же сказал 1 или 2!\n";
-        return;
+    if (aenc != 1 && aenc != 2) {
+        throw std::runtime_error("Unknown operation");
     }
     
-    
     std::vector<std::string> foundFiles;
-    std::string sttr = (aenc == 1) ? "notenc" : "enc";
+    std::string sttr = (aenc == 1) ? "input" : "output";
 
     for (const auto& entry : std::filesystem::directory_iterator(".")) {
         std::string name = entry.path().filename().string();
@@ -79,58 +73,44 @@ void createEncfile(const std::string& pattern, const std::string& output_massage
     }
 
     if (foundFiles.empty()) {
-        std::cout << "Файлов с таким названием нет\n";
-        return;
+        throw std::runtime_error("No files with such name");
     }
     if (foundFiles.size() > 1) {
-        std::cout << "Есть несколько файлов с таким названием\n";
-        return;
+        throw std::runtime_error("More than one files with such name");
     }
 
     std::string inputFile = foundFiles[0];
 
-    std::string outputFile = inputFile;
+    std::string baseOutputFile = inputFile;
     if (aenc == 1) { 
-        size_t pos = outputFile.find("notenc");
+        size_t pos = baseOutputFile.find("input");
         if (pos != std::string::npos) {
-            outputFile.replace(pos, 6, "enc");
+            baseOutputFile.replace(pos, 5, "output");
         }
     } else {
-        size_t pos = outputFile.find("enc");
+        size_t pos = baseOutputFile.find("output");
         if (pos != std::string::npos) {
-            outputFile.replace(pos, 3, "notenc");
+            baseOutputFile.replace(pos, 6, "input");
         }
+    }
+
+    std::string outputFile = baseOutputFile;
+
+    std::string baseName = baseOutputFile.substr(0, baseOutputFile.find_last_of('.'));
+    std::string extension = baseOutputFile.substr(baseOutputFile.find_last_of('.'));
+
+    int counter = 1;
+    while (std::filesystem::exists(outputFile)) {
+        outputFile = baseName + " (" + std::to_string(counter++) + ")" + extension;
     }
 
     std::ofstream fout(outputFile);
     if (!fout) {
-        std::cout << "Ошибка создания файла\n";
-        return;
+        throw std::runtime_error("Failed to create file");
     }
 
     fout << output_massage;
     fout.close();
 
-    std::cout << "Файл: " << outputFile << " создан" << "\n";
-}
-
-int main() {
-    std::string pattern;
-    int aenc;
-
-    std::cout << "Введите часть или полное название файла для поиска файла: ";
-    std::cin >> pattern;
-
-    std::cout << "Введите 1 для кодировки или 2 для декодировки: ";
-    std::cin >> aenc;
-
-    std::string input_massage = readfile(pattern, aenc);
-
-    if (!input_massage.empty()) {
-        std::cout << input_massage << "\n";
- 
-        createEncfile(pattern, input_massage, aenc);
-    }
-
-    return 0;
+    std::cout << "File: " << outputFile << " created" << std::endl;
 }
